@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fortinet Admin - Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial; background: #f0f2f5; }
+        .header { background: linear-gradient(135deg, #0a5c4a 0%, #1a3a2e 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .header h1 { font-size: 24px; }
+        .header h1 span { color: #ffd700; }
+        .logout-btn { background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 20px; max-width: 1400px; margin: auto; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .stat-number { font-size: 32px; font-weight: bold; color: #0a5c4a; }
+        .stat-label { color: #666; margin-top: 5px; }
+        .complaints-container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        .complaint-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 5px solid #ffc107; }
+        .complaint-card.resolved { border-left-color: #28a745; }
+        .complaint-header { display: flex; justify-content: space-between; flex-wrap: wrap; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .complaint-id { font-weight: bold; color: #0a5c4a; font-family: monospace; }
+        .complaint-status { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-replied { background: #cfe2ff; color: #084298; }
+        .status-resolved { background: #d4edda; color: #155724; }
+        .complaint-details { margin: 15px 0; line-height: 1.6; }
+        .reply-section { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+        .reply-textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; resize: vertical; min-height: 80px; font-family: inherit; }
+        .reply-btn { background: #0a5c4a; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .resolve-btn { background: #28a745; margin-left: 10px; }
+        .existing-reply { background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 10px; }
+        .filter-buttons { margin: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .filter-btn { padding: 8px 20px; border: none; border-radius: 20px; cursor: pointer; background: #ddd; transition: 0.2s; }
+        .filter-btn.active { background: #0a5c4a; color: white; }
+        .refresh-btn { background: #17a2b8; color: white; }
+        .loading { text-align: center; padding: 40px; }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; text-align: center; }
+        .badge { background: #0a5c4a10; padding: 3px 8px; border-radius: 5px; font-size: 12px; display: inline-block; margin-left: 10px; }
+        @media (max-width: 768px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .complaint-header { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span>FORTINET</span> Support Dashboard</h1>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="stats" id="stats">
+        <div class="stat-card"><div class="stat-number">-</div><div class="stat-label">Loading...</div></div>
+    </div>
+
+    <div class="filter-buttons">
+        <button class="filter-btn active" onclick="filterComplaints('all')">All</button>
+        <button class="filter-btn" onclick="filterComplaints('Pending')">Pending</button>
+        <button class="filter-btn" onclick="filterComplaints('Replied')">Replied</button>
+        <button class="filter-btn" onclick="filterComplaints('Resolved')">Resolved</button>
+        <button class="filter-btn refresh-btn" onclick="loadComplaints()">🔄 Refresh</button>
+    </div>
+
+    <div class="complaints-container" id="complaintsContainer">
+        <div class="loading">Loading complaints from Google Sheets...</div>
+    </div>
+
+    <script>
+        // ⚠️ IMPORTANT: Replace with YOUR Google Apps Script URL
+        const API_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_URL/exec";
+
+        if (localStorage.getItem('fortinetAdminLoggedIn') !== 'true') {
+            window.location.href = 'admin-login.html';
+        }
+
+        let allComplaints = [];
+        let currentFilter = 'all';
+
+        async function loadComplaints() {
+            const container = document.getElementById('complaintsContainer');
+            container.innerHTML = '<div class="loading">🔄 Loading complaints from Google Sheets...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}?action=getAll`);
+                const data = await response.json();
+                
+                if (data.complaints) {
+                    allComplaints = data.complaints;
+                    updateStats();
+                    displayComplaints();
+                } else {
+                    container.innerHTML = `<div class="error">❌ Error: ${data.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">❌ Failed to connect. Make sure your Google Apps Script is deployed and the URL is correct.</div>`;
+            }
+        }
+
+        function updateStats() {
+            const total = allComplaints.length;
+            const pending = allComplaints.filter(c => c.Status === 'Pending').length;
+            const replied = allComplaints.filter(c => c.Status === 'Replied').length;
+            const resolved = allComplaints.filter(c => c.Status === 'Resolved').length;
+            
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">Total Complaints</div></div>
+                <div class="stat-card"><div class="stat-number">${pending}</div><div class="stat-label">Pending</div></div>
+                <div class="stat-card"><div class="stat-number">${replied}</div><div class="stat-label">Replied</div></div>
+                <div class="stat-card"><div class="stat-number">${resolved}</div><div class="stat-label">Resolved</div></div>
+            `;
+        }
+
+        function displayComplaints() {
+            let filtered = allComplaints;
+            if (currentFilter !== 'all') {
+                filtered = allComplaints.filter(c => c.Status === currentFilter);
+            }
+            
+            const container = document.getElementById('complaintsContainer');
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 60px; background: white; border-radius: 12px;">📭 No complaints found.</div>';
+                return;
+            }
+            
+            filtered.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+            
+            container.innerHTML = '';
+            filtered.forEach(complaint => {
+                const statusClass = complaint.Status === 'Pending' ? 'status-pending' : 
+                                   complaint.Status === 'Replied' ? 'status-replied' : 'status-resolved';
+                
+                const replyHtml = complaint.Reply && complaint.Reply !== 'No reply yet' ? `
+                    <div class="existing-reply">
+                        <strong>📝 Previous Fortinet Reply:</strong><br>
+                        ${complaint.Reply}<br>
+                        <small>Sent on: ${complaint.ReplyDate || 'Date not recorded'}</small>
+                    </div>
+                ` : '';
+                
+                container.innerHTML += `
+                    <div class="complaint-card ${complaint.Status === 'Resolved' ? 'resolved' : ''}">
+                        <div class="complaint-header">
+                            <span class="complaint-id">🎫 ${complaint.ID}</span>
+                            <span class="complaint-status ${statusClass}">${complaint.Status}</span>
+                        </div>
+                        <div class="complaint-details">
+                            <p><strong>👤 Customer:</strong> ${complaint.Name} <span class="badge">Fortinet Customer</span></p>
+                            <p><strong>📧 Email:</strong> ${complaint.Email}</p>
+                            <p><strong>📌 Subject:</strong> ${complaint.Subject}</p>
+                            <p><strong>📂 Category:</strong> ${complaint.Category}</p>
+                            <p><strong>📅 Submitted:</strong> ${complaint.Date}</p>
+                            <p><strong>📝 Complaint Details:</strong><br>${complaint.Message}</p>
+                        </div>
+                        ${replyHtml}
+                        <div class="reply-section">
+                            <textarea id="reply-${complaint.ID}" class="reply-textarea" placeholder="Type your Fortinet support response here..."></textarea>
+                            <div>
+                                <button class="reply-btn" onclick="sendReply('${complaint.ID}')">📤 Send Fortinet Reply</button>
+                                ${complaint.Status !== 'Resolved' ? `<button class="reply-btn resolve-btn" onclick="markResolved('${complaint.ID}')">✅ Mark as Resolved</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function sendReply(complaintId) {
+            const reply = document.getElementById(`reply-${complaintId}`).value.trim();
+            if (!reply) {
+                alert('Please enter a reply message');
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reply', id: complaintId, reply: reply })
+                });
+                alert('✅ Reply sent successfully!');
+                loadComplaints();
+            } catch (error) {
+                alert('❌ Error sending reply');
+                btn.disabled = false;
+                btn.textContent = '📤 Send Fortinet Reply';
+            }
+        }
+
+        async function markResolved(complaintId) {
+            if (!confirm('Mark this complaint as resolved?')) return;
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+            
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'resolve', id: complaintId })
+                });
+                alert('✅ Complaint marked as resolved!');
+                loadComplaints();
+            } catch (error) {
+                alert('❌ Error updating status');
+                btn.disabled = false;
+                btn.textContent = '✅ Mark as Resolved';
+            }
+        }
+
+        function filterComplaints(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            displayComplaints();
+        }
+
+        function logout() {
+            localStorage.removeItem('fortinetAdminLoggedIn');
+            window.location.href = 'admin-login.html';
+        }
+
+        loadComplaints();
+        setInterval(loadComplaints, 30000);
+    </script>
+</body>
+</html>
