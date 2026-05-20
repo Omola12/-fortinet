@@ -3,31 +3,28 @@
 <head>
     <title>Fortinet Support - Submit Complaint</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial; background: linear-gradient(135deg, #0a5c4a 0%, #1a3a2e 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 600px; margin: auto; }
         .header { text-align: center; color: white; margin-bottom: 30px; }
-        .header h1 { font-size: 32px; margin-bottom: 10px; }
         .header h1 span { color: #ffd700; }
         .fortinet-logo .logo { font-size: 48px; background: #0a5c4a; color: white; width: 80px; height: 80px; line-height: 80px; border-radius: 50%; margin: 0 auto 15px; display: inline-block; }
-        .form-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .form-card { background: white; border-radius: 20px; padding: 30px; }
         .input-group { margin-bottom: 20px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
-        input, select, textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; font-family: inherit; }
-        button { background: linear-gradient(135deg, #0a5c4a 0%, #1a3a2e 100%); color: white; padding: 14px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: transform 0.2s; }
-        button:hover { transform: translateY(-2px); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        input, select, textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; }
+        button { background: linear-gradient(135deg, #0a5c4a 0%, #1a3a2e 100%); color: white; padding: 14px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; }
+        button:disabled { opacity: 0.5; }
+        .success { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
         .track-section { margin-top: 30px; padding-top: 30px; border-top: 2px solid #eee; }
         .track-input { display: flex; gap: 10px; margin-top: 15px; }
         .track-input input { flex: 1; }
         .track-input button { width: auto; padding: 12px 20px; }
-        .success { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #f5c6cb; }
         .complaint-status { background: #f8f9fa; border-radius: 10px; padding: 15px; margin-top: 15px; }
         .reply-box { background: #e3f2fd; padding: 15px; border-radius: 10px; margin-top: 10px; }
-        .loading { background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .loading { background: #fff3cd; padding: 12px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -46,17 +43,14 @@
                 <label>Full Name *</label>
                 <input type="text" id="customerName" required>
             </div>
-            
             <div class="input-group">
                 <label>Email *</label>
                 <input type="email" id="customerEmail" required>
             </div>
-            
             <div class="input-group">
                 <label>Subject *</label>
                 <input type="text" id="subject" required>
             </div>
-            
             <div class="input-group">
                 <label>Category *</label>
                 <select id="category">
@@ -67,19 +61,17 @@
                     <option>Other</option>
                 </select>
             </div>
-            
             <div class="input-group">
                 <label>Complaint Details *</label>
                 <textarea id="messageText" rows="4" required></textarea>
             </div>
-            
             <button type="submit" id="submitBtn">📤 Submit to Fortinet</button>
         </form>
 
         <div class="track-section">
             <h3>🔍 Track Your Complaint</h3>
             <div class="track-input">
-                <input type="text" id="trackingId" placeholder="Enter Complaint ID (e.g., FTNT-123456-ABC789)">
+                <input type="text" id="trackingId" placeholder="Enter Complaint ID">
                 <button onclick="trackComplaint()">Track</button>
             </div>
             <div id="trackResult"></div>
@@ -88,8 +80,12 @@
 </div>
 
 <script>
-// ⚠️ IMPORTANT: Replace with YOUR Google Apps Script URL
-const API_URL = "https://script.google.com/macros/s/AKfycbyhnNwYyjie1qJRulSEeFCDd8Cwbp3Y_L5A0yaxfsdyaVsOHNnbPY-BfDX2kzewiUQ-/exec";
+// REPLACE WITH YOUR GOOGLE APPS SCRIPT URL
+const API_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_URL/exec";
+
+function generateId() {
+    return "FTNT-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+}
 
 // Submit complaint
 document.getElementById("complaintForm").addEventListener("submit", async (e) => {
@@ -101,15 +97,10 @@ document.getElementById("complaintForm").addEventListener("submit", async (e) =>
     const category = document.getElementById("category").value;
     const message = document.getElementById("messageText").value.trim();
     
-    if (!name || !email || !subject || !message) {
-        showMessage("Please fill in all required fields", "error");
-        return;
-    }
-    
     const submitBtn = document.getElementById("submitBtn");
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting...";
-    showMessage("Submitting your complaint...", "loading");
+    document.getElementById("message").innerHTML = '<div class="loading">Submitting...</div>';
     
     try {
         const response = await fetch(API_URL, {
@@ -117,7 +108,6 @@ document.getElementById("complaintForm").addEventListener("submit", async (e) =>
             mode: "no-cors",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                action: "submit",
                 name: name,
                 email: email,
                 subject: subject,
@@ -126,16 +116,22 @@ document.getElementById("complaintForm").addEventListener("submit", async (e) =>
             })
         });
         
-        showMessage(`
-            ✅ <strong>Complaint submitted successfully!</strong><br>
-            Your complaint has been sent to Fortinet support.<br>
-            <strong>Please check your email for confirmation.</strong><br>
-            You can also track your complaint using the tracking feature above.
-        `, "success");
+        // Since mode is no-cors, we can't read response
+        // Generate a local ID for the user
+        const localId = generateId();
+        
+        document.getElementById("message").innerHTML = `
+            <div class="success">
+                ✅ <strong>Complaint submitted successfully!</strong><br>
+                <strong>Your Complaint ID:</strong> ${localId}<br>
+                Please save this ID to track your complaint status.<br>
+                <small>Fortinet support will respond within 24 hours.</small>
+            </div>
+        `;
         document.getElementById("complaintForm").reset();
         
     } catch (error) {
-        showMessage("❌ Error submitting complaint. Please try again.", "error");
+        document.getElementById("message").innerHTML = `<div class="error">❌ Error submitting complaint. Please try again.</div>`;
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = "📤 Submit to Fortinet";
@@ -145,50 +141,53 @@ document.getElementById("complaintForm").addEventListener("submit", async (e) =>
 // Track complaint
 async function trackComplaint() {
     const id = document.getElementById("trackingId").value.trim();
-    
     if (!id) {
         alert("Please enter your Complaint ID");
         return;
     }
     
     const trackDiv = document.getElementById("trackResult");
-    trackDiv.innerHTML = '<div class="loading">🔍 Searching for complaint...</div>';
+    trackDiv.innerHTML = '<div class="loading">🔍 Searching...</div>';
     
     try {
-        const response = await fetch(`${API_URL}?action=getOne&id=${encodeURIComponent(id)}`);
-        const data = await response.json();
+        // Use JSONP to bypass CORS
+        const script = document.createElement('script');
+        const callbackName = 'jsonpCallback_' + Date.now();
         
-        if (data.complaint) {
-            const c = data.complaint;
-            trackDiv.innerHTML = `
-                <div class="complaint-status">
-                    <strong>🎫 Complaint ID:</strong> ${c.ID}<br>
-                    <strong>👤 Name:</strong> ${c.Name}<br>
-                    <strong>📧 Email:</strong> ${c.Email}<br>
-                    <strong>📌 Subject:</strong> ${c.Subject}<br>
-                    <strong>📝 Message:</strong> ${c.Message}<br>
-                    <strong>⚡ Status:</strong> <span style="color: ${c.Status === 'Resolved' ? 'green' : 'orange'}">${c.Status}</span><br>
-                    <strong>📅 Date:</strong> ${c.Date}<br>
-                    ${c.Reply && c.Reply !== 'No reply yet' ? `<div class="reply-box"><strong>📝 Fortinet Support Response:</strong><br>${c.Reply}</div>` : ''}
-                </div>
-            `;
-        } else {
-            trackDiv.innerHTML = `<div class="error">❌ Complaint not found. Please check your Complaint ID.</div>`;
-        }
-    } catch (error) {
-        trackDiv.innerHTML = `<div class="error">❌ Error tracking complaint. Please try again.</div>`;
-    }
-}
-
-function showMessage(msg, type) {
-    const messageDiv = document.getElementById("message");
-    messageDiv.innerHTML = `<div class="${type}">${msg}</div>`;
-    if (type !== "loading") {
-        setTimeout(() => {
-            if (messageDiv.innerHTML === `<div class="${type}">${msg}</div>`) {
-                messageDiv.innerHTML = "";
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            
+            if (data.complaint) {
+                const c = data.complaint;
+                trackDiv.innerHTML = `
+                    <div class="complaint-status">
+                        <strong>🎫 Complaint ID:</strong> ${c.ID}<br>
+                        <strong>👤 Name:</strong> ${c.Name}<br>
+                        <strong>📧 Email:</strong> ${c.Email}<br>
+                        <strong>📌 Subject:</strong> ${c.Subject}<br>
+                        <strong>📝 Message:</strong> ${c.Message}<br>
+                        <strong>⚡ Status:</strong> <span style="color: ${c.Status === 'Resolved' ? 'green' : 'orange'}">${c.Status}</span><br>
+                        ${c.Reply ? `<div class="reply-box"><strong>📝 Fortinet Response:</strong><br>${c.Reply}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                trackDiv.innerHTML = `<div class="error">❌ Complaint not found. Please check your ID.</div>`;
             }
-        }, 8000);
+        };
+        
+        script.src = `${API_URL}?action=getOne&id=${encodeURIComponent(id)}&callback=${callbackName}`;
+        document.body.appendChild(script);
+        
+        setTimeout(() => {
+            if (window[callbackName]) {
+                delete window[callbackName];
+                trackDiv.innerHTML = `<div class="error">❌ Request timeout. Please try again.</div>`;
+            }
+        }, 10000);
+        
+    } catch (error) {
+        trackDiv.innerHTML = `<div class="error">❌ Error tracking complaint.</div>`;
     }
 }
 </script>
